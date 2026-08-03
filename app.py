@@ -2,23 +2,30 @@ import streamlit as st
 import os
 from groq import Groq
 
-# 1. API-ключ Groq
-API_KEY = "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"
-client = Groq(api_key=API_KEY)
-
-# 2. Настройка страницы
+# 1. Настройка страницы
 st.set_page_config(
     page_title="DevAssistant AI | Aynur Sabirov", 
     page_icon="⚡",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 3. Подключаем векторные иконки Font Awesome и CSS-стили
-icon_styles = """
+# 2. Безопасное получение API-ключа из Secrets
+API_KEY = st.secrets["GROQ_API_KEY"]
+client = Groq(api_key=API_KEY)
+
+# 3. Подключение иконок Font Awesome и скрытие системных элементов Streamlit (GitHub, Menu, Footer)
+custom_styles = """
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-    /* Стилизация шрифтов и элементов */
+    /* Скрытие системного интерфейса Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stAppHeader {display: none;}
+    
+    /* Пользовательские стили */
     .icon-title {
         color: #58a6ff;
         margin-right: 8px;
@@ -35,7 +42,7 @@ icon_styles = """
     }
 </style>
 """
-st.markdown(icon_styles, unsafe_allow_html=True)
+st.markdown(custom_styles, unsafe_allow_html=True)
 
 # 4. Загрузка Базы Знаний
 @st.cache_data
@@ -76,7 +83,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# 6. Обработка запроса
+# 6. Обработка запроса пользователя
 if user_prompt := st.chat_input("Напиши код, спроси о баге или архитектуре..."):
     st.chat_message("user", avatar="👨‍💻").markdown(user_prompt)
     st.session_state.messages.append({"role": "user", "content": user_prompt})
