@@ -4,7 +4,7 @@ from groq import Groq
 
 # 1. Настройка страницы
 st.set_page_config(
-    page_title="DevAssistant AI | Aynur Sabirov", 
+    page_title="DevForge AI | Aynur Sabirov", 
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -14,18 +14,16 @@ st.set_page_config(
 API_KEY = st.secrets["GROQ_API_KEY"]
 client = Groq(api_key=API_KEY)
 
-# 3. Подключение иконок Font Awesome и скрытие системных элементов Streamlit (GitHub, Menu, Footer)
+# 3. Подключение иконок и скрытие системных элементов Streamlit
 custom_styles = """
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-    /* Скрытие системного интерфейса Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stAppHeader {display: none;}
     
-    /* Пользовательские стили */
     .icon-title {
         color: #58a6ff;
         margin-right: 8px;
@@ -56,7 +54,7 @@ knowledge_data = load_knowledge_base()
 
 # --- БОКОВАЯ ПАНЕЛЬ ---
 with st.sidebar:
-    st.markdown('<h3><i class="fa-solid fa-code icon-title"></i>DevAssistant AI</h3>', unsafe_allow_html=True)
+    st.markdown('<h3><i class="fa-solid fa-hammer icon-title"></i>DevForge AI</h3>', unsafe_allow_html=True)
     st.markdown('<p style="color:#8b949e;"><i class="fa-regular fa-user"></i> Создатель: <b>Айнур Сабиров</b></p>', unsafe_allow_html=True)
     st.divider()
     
@@ -69,8 +67,8 @@ with st.sidebar:
         st.rerun()
 
 # --- ОСНОВНАЯ ОБЛАСТЬ ---
-st.markdown('<div class="custom-header"><i class="fa-solid fa-terminal icon-title"></i>Персональный ИИ-Senior Developer</div>', unsafe_allow_html=True)
-st.markdown('<div class="custom-sub">Умный ассистент по программированию • Версия 2.0</div>', unsafe_allow_html=True)
+st.markdown('<div class="custom-header"><i class="fa-solid fa-code icon-title"></i>DevForge AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="custom-sub">Твоя персональная кузница решений и Senior-ментор по разработке</div>', unsafe_allow_html=True)
 st.divider()
 
 # 5. Инициализация памяти диалога
@@ -79,7 +77,7 @@ if "messages" not in st.session_state:
 
 # Отрисовка сообщений
 for message in st.session_state.messages:
-    avatar = "👨‍💻" if message["role"] == "user" else "🤖"
+    avatar = "👨‍💻" if message["role"] == "user" else "⚡"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
@@ -88,14 +86,16 @@ if user_prompt := st.chat_input("Напиши код, спроси о баге �
     st.chat_message("user", avatar="👨‍💻").markdown(user_prompt)
     st.session_state.messages.append({"role": "user", "content": user_prompt})
 
+    # Указываем имя ИИ в системных инструкциях!
     system_instruction = f"""
-    Ты — опытный Senior Software Engineer и терпеливый ментор по программированию. 
+    Тебя зовут DevForge AI. Ты — мощный ИИ-ассистент, опытный Senior Software Engineer и ментор по программированию. 
     Твой создатель — Айнур Сабиров.
     
     Твои задачи:
-    1. Помогать с кодом на любых языках (Python, C#, C++, JS, SQL и т.д.).
-    2. Оформлять весь код в красивых Markdown-блоках с подсветкой синтаксиса.
-    3. Отвечать подробно, профессионально и понятно.
+    1. Помогай с кодом на любых языках (Python, C#, C++, JS, SQL и т.д.).
+    2. Если тебя спрашивают, кто ты, гордо отвечай, что ты DevForge AI, созданный Айнуром Сабировым.
+    3. Оформляй весь код в красивых Markdown-блоках с подсветкой синтаксиса.
+    4. Отвечай подробно, профессионально и по делу.
     
     БАЗА ЗНАНИЙ СОЗДАТЕЛЯ:
     {knowledge_data}
@@ -105,7 +105,7 @@ if user_prompt := st.chat_input("Напиши код, спроси о баге �
     for msg in st.session_state.messages:
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar="⚡"):
         completion = client.chat.completions.create(
             messages=api_messages,
             model="llama-3.3-70b-versatile",
