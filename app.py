@@ -20,6 +20,13 @@ if "messages" not in st.session_state:
 if "theme" not in st.session_state:
     st.session_state.theme = "Темная"
 
+# 4. Словарь актуальных моделей и их понятных названий
+MODEL_OPTIONS = {
+    "llama-3.3-70b-versatile": "Llama 3.3 70B (Pro / Флагман)",
+    "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)",
+    "gemma2-9b-it": "Gemma 2 9B (Легкая / Google)"
+}
+
 # --- БОКОВАЯ ПАНЕЛЬ (SIDEBAR) ---
 with st.sidebar:
     st.markdown('<h3><i class="fa-solid fa-hammer icon-title"></i>DevForge AI</h3>', unsafe_allow_html=True)
@@ -38,16 +45,15 @@ with st.sidebar:
 
     # НАСТРОЙКИ
     with st.expander("⚙️ Настройки приложения", expanded=True):
-        # 1. Выбор языковой модели
-        model_choice = st.selectbox(
+        # 1. Выбор модели с понятным названием
+        selected_model_label = st.selectbox(
             "Модель ИИ:",
-            [
-                "llama-3.3-70b-versatile",
-                "llama3-8b-8192",
-                "mixtral-8x7b-32768"
-            ],
+            options=list(MODEL_OPTIONS.values()),
             index=0
         )
+        
+        # Получаем реальный системный ID модели по ее красивому названию
+        selected_model_id = [key for key, value in MODEL_OPTIONS.items() if value == selected_model_label][0]
         
         # 2. Выбор темы
         selected_theme = st.radio(
@@ -79,7 +85,7 @@ if st.session_state.theme == "Светлая":
     text_color = "#1f2328"
     card_bg = "#f6f8fa"
     border_color = "#d0d7de"
-else: # Темная тема
+else:  # Темная тема
     bg_color = "#0d1117"
     text_color = "#c9d1d9"
     card_bg = "#161b22"
@@ -93,7 +99,6 @@ custom_styles = f"""
     header {{visibility: hidden;}}
     .stAppHeader {{display: none;}}
     
-    /* Применение темы */
     .stApp {{
         background-color: {bg_color};
         color: {text_color};
@@ -113,11 +118,11 @@ st.markdown(custom_styles, unsafe_allow_html=True)
 # --- ОСНОВНАЯ ОБЛАСТЬ ---
 if app_mode == "Senior Программист":
     main_title = "Senior Developer Mode"
-    sub_title = f"Модель: {model_choice} | Глубокая аналитика кода"
+    sub_title = f"Модель: {selected_model_label} | Глубокая аналитика кода"
     avatar_icon = "⚡"
 else:
     main_title = "General Assistant Mode"
-    sub_title = f"Модель: {model_choice} | Универсальный помощник"
+    sub_title = f"Модель: {selected_model_label} | Универсальный помощник"
     avatar_icon = "🤖"
 
 st.markdown(f'<div class="custom-header"><i class="fa-solid fa-terminal icon-title"></i>{main_title}</div>', unsafe_allow_html=True)
@@ -155,10 +160,9 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant", avatar=avatar_icon):
-        # Используем выбранную модель из настроек!
         completion = client.chat.completions.create(
             messages=api_messages,
-            model=model_choice,
+            model=selected_model_id,
             stream=True
         )
         
