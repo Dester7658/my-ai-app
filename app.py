@@ -1,5 +1,6 @@
 import streamlit as st
 from groq import Groq
+from supabase import create_client, Client
 
 # 1. Настройка страницы
 st.set_page_config(
@@ -9,11 +10,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. Безопасное получение API-ключа из Secrets
-API_KEY = st.secrets["GROQ_API_KEY"]
-client = Groq(api_key=API_KEY)
+# 2. Инициализация сервисов
+API_KEY = st.secrets.get("GROQ_API_KEY", "")
+client = Groq(api_key=API_KEY) if API_KEY else None
 
-# 3. Инициализация состояний (память сессии)
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        pass
+
+# 3. Инициализация состояний сессии
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "is_logged_in" not in st.session_state:
@@ -31,6 +42,21 @@ MODEL_OPTIONS = {
     "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)"
 }
 
+# --- ИСПРАВЛЕННЫЕ СТИЛИ (Сохраняем кнопку открытия шторки) ---
+custom_styles = """
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* Скрываем только лишнее меню, оставляем кнопку открывания боковой панели */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    .icon-title { color: #58a6ff; margin-right: 8px; }
+    .custom-header { font-size: 2rem; font-weight: 700; margin-bottom: 5px; }
+    .custom-sub { color: #8b949e !important; font-size: 0.95rem; margin-bottom: 15px; }
+</style>
+"""
+st.markdown(custom_styles, unsafe_allow_html=True)
+
 # --- БОКОВАЯ ПАНЕЛЬ (SIDEBAR) ---
 with st.sidebar:
     st.markdown('<h3><i class="fa-solid fa-code icon-title"></i>DevForge AI</h3>', unsafe_allow_html=True)
@@ -47,11 +73,11 @@ with st.sidebar:
 
     st.divider()
 
-    # ЕДИНАЯ КНОПКА НАСТРОЕК И ПРОФИЛЯ
+    # НАСТРОЙКИ И АВТОРИЗАЦИЯ
     with st.expander("Профиль и Настройки", expanded=False):
         tab_account, tab_profile, tab_settings = st.tabs(["Аккаунт", "О себе", "ИИ"])
 
-        # Вкладка 1: Авторизация (Вход и Выход)
+        # Вкладка 1: Авторизация через Supabase
         with tab_account:
             st.markdown("##### Авторизация")
             
@@ -61,43 +87,78 @@ with st.sidebar:
                     st.caption(f"Email: {st.session_state.user_email}")
                 
                 if st.button("Выйти из аккаунта", use_container_width=True):
+                    if supabase:
+                        try:
+                            supabase.auth.sign_out()
+                        except Exception:
+                            pass
                     st.session_state.is_logged_in = False
                     st.session_state.user_email = ""
                     st.session_state.user_name = ""
                     st.toast("Вы успешно вышли из системы")
                     st.rerun()
             else:
-                auth_method = st.radio("Способ входа:", ["По почте", "Через Google"], key="auth_method_choice")
+                auth_mode = st.radio("Действие:", ["Вход", "Регистрация"], key="auth_mode")
+                auth_method = st.radio("Способ:", ["По почте", "Через Google"], key="auth_method")
                 
                 if auth_method == "По почте":
                     login_email = st.text_input("Электронная почта", placeholder="example@mail.com")
                     login_password = st.text_input("Пароль", type="password")
                     
-                    if st.button("Войти", use_container_width=True):
-                        if login_email and login_password:
-                            st.session_state.is_logged_in = True
-                            st.session_state.user_email = login_email
-                            # Извлекаем имя из почты до знака @
-                            st.session_state.user_name = login_email.split("@")[0].capitalize()
-                            st.toast("Вход выполнен успешно!", icon="✔")
-                            st.rerun()
-                        else:
-                            st.error("Заполните почту и пароль!")
-                            
+                    if auth_mode == "Вход":
+                        if st.button("Войти", use_container_width=True):
+                            if login_email and login_password:
+                                if supabase:
+                                    try:
+                                        res = supabase.auth.sign_in_with_password({
+                                            "email": login_email,
+                                            "password": login_password
+                                        })
+                                        st.session_state.is_logged_in = True
+                                        st.session_state.user_email = res.user.email
+                                        st.session_state.user_name = login_email.split("@")[0].capitalize()
+                                        st.toast("Успешная авторизация!", icon="✔")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Ошибка входа: {e}")
+                                else:
+                                    st.warning("Supabase не подключен. Проверьте Secrets.")
+                            else:
+                                st.error("Заполните почту и пароль!")
+                    else: # Регистрация
+                        if st.button("Зарегистрироваться", use_container_width=True):
+                            if login_email and login_password:
+                                if supabase:
+                                    try:
+                                        res = supabase.auth.sign_up({
+                                            "email": login_email,
+                                            "password": login_password
+                                        })
+                                        st.success("Регистрация успешна! Проверьте почту для подтверждения.")
+                                    except Exception as e:
+                                        st.error(f"Ошибка регистрации: {e}")
+                                else:
+                                    st.error("Подключите Supabase в Secrets!")
+
                 elif auth_method == "Через Google":
-                    st.caption("Быстрый вход через аккаунт Google")
+                    st.caption("Вход через защищённый сервис Google OAuth 2.0")
                     if st.button("Войти через Google", use_container_width=True):
-                        # Имитация входа через Google OAuth
-                        st.session_state.is_logged_in = True
-                        st.session_state.user_email = "user.google@gmail.com"
-                        st.session_state.user_name = "Пользователь Google"
-                        st.toast("Авторизация через Google прошла успешно!", icon="✔")
-                        st.rerun()
+                        if supabase:
+                            try:
+                                res = supabase.auth.sign_in_with_oauth({
+                                    "provider": "google"
+                                })
+                                if res.url:
+                                    st.markdown(f"[Перейти к авторизации Google]({res.url})")
+                            except Exception as e:
+                                st.error(f"Ошибка Google Auth: {e}")
+                        else:
+                            st.warning("Вход через Google доступен при настроенном Supabase.")
 
         # Вкладка 2: Данные о себе
         with tab_profile:
             st.markdown("##### Данные о пользователе")
-            st.caption("Расскажите ИИ о себе для более точных ответов.")
+            st.caption("Расскажите ИИ о себе для контекста.")
             
             user_name_input = st.text_input("Как вас зовут?", value=st.session_state.user_name)
             user_about_input = st.text_area(
@@ -127,22 +188,6 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# --- СТАНДАРТНЫЙ СВЕТЛЫЙ СТИЛЬ (Без переключения тем) ---
-custom_styles = """
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stAppHeader {display: none;}
-    
-    .icon-title { color: #58a6ff; margin-right: 8px; }
-    .custom-header { font-size: 2rem; font-weight: 700; margin-bottom: 5px; }
-    .custom-sub { color: #8b949e !important; font-size: 0.95rem; margin-bottom: 15px; }
-</style>
-"""
-st.markdown(custom_styles, unsafe_allow_html=True)
-
 # --- ОСНОВНАЯ ОБЛАСТЬ ---
 if app_mode == "Senior Программист":
     main_title = "Senior Developer Mode"
@@ -165,7 +210,7 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     st.chat_message("user").markdown(user_prompt)
     st.session_state.messages.append({"role": "user", "content": user_prompt})
 
-    # Собираем контекст о пользователе
+    # Контекст пользователя
     user_info_context = ""
     if st.session_state.user_name:
         user_info_context += f"Имя пользователя: {st.session_state.user_name}. "
@@ -174,7 +219,7 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     if st.session_state.user_about:
         user_info_context += f"Фоновая информация/стек: {st.session_state.user_about}."
 
-    # Настройки характера и стилистики
+    # Настройки поведения
     personality_rules = """
     ПРАВИЛА СТИЛЯ И ОБЩЕНИЯ:
     1. НЕ ИСПОЛЬЗУЙ эмодзи/смайлики (никаких 🤖, ⚡, 😊 и т.д.).
@@ -205,16 +250,19 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant"):
-        completion = client.chat.completions.create(
-            messages=api_messages,
-            model=selected_model_id,
-            stream=True
-        )
-        
-        def stream_data():
-            for chunk in completion:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+        if client:
+            completion = client.chat.completions.create(
+                messages=api_messages,
+                model=selected_model_id,
+                stream=True
+            )
+            
+            def stream_data():
+                for chunk in completion:
+                    if chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
 
-        reply = st.write_stream(stream_data)
-        st.session_state.messages.append({"role": "assistant", "content": reply})
+            reply = st.write_stream(stream_data)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+        else:
+            st.error("Ключ GROQ_API_KEY не найден в Secrets!")
