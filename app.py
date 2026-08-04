@@ -11,7 +11,6 @@ st.set_page_config(
 )
 
 # 2. Безопасное получение API-ключа из Secrets
-# Убедись, что GROQ_API_KEY прописан в Secrets на Streamlit Cloud
 API_KEY = st.secrets["GROQ_API_KEY"]
 client = Groq(api_key=API_KEY)
 
@@ -46,7 +45,7 @@ with st.sidebar:
     app_mode = st.selectbox(
         "Выберите специализацию ИИ:",
         ["Обычный ассистент", "Senior Программист"],
-        index=1 # По умолчанию ставим программиста
+        index=1
     )
 
     st.divider()
@@ -73,7 +72,6 @@ with st.sidebar:
     st.text_area("", knowledge_data, height=150, disabled=True)
 
 # --- ОСНОВНАЯ ОБЛАСТЬ ---
-# Динамический заголовок в зависимости от режима
 if app_mode == "Senior Программист":
     main_title = "Senior Developer Mode"
     sub_title = "Глубокая аналитика кода и архитектурные решения"
@@ -98,7 +96,6 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     st.chat_message("user", avatar="👨‍💻").markdown(user_prompt)
     st.session_state.messages.append({"role": "user", "content": user_prompt})
 
-    # ФОРМИРОВАНИЕ ИНСТРУКЦИИ В ЗАВИСИМОСТИ ОТ РЕЖИМА
     if app_mode == "Senior Программист":
         system_role = f"""
         Тебя зовут DevForge AI. Ты — Senior Software Engineer. 
@@ -132,5 +129,3 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
 
         reply = st.write_stream(stream_data)
         st.session_state.messages.append({"role": "assistant", "content": reply})
-
-Ваше новое приложение **DevForge AI 2.0** готово! Теперь оно выглядит гораздо круче. Дайте знать, если захотите добавить еще какие-нибудь функции!
