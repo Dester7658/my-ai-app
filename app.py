@@ -1,6 +1,7 @@
 import streamlit as st
 from groq import Groq
 from supabase import create_client, Client
+import extra_streamlit_components as stx
 
 # 1. Настройка страницы
 st.set_page_config(
@@ -10,7 +11,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. Инициализация сервисов
+# 2. Менеджер Куки для сохранения сессии при перезагрузке
+@st.cache_resource(experimental_allow_widgets=True)
+def get_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_cookie_manager()
+
+# 3. Инициализация внешних сервисов
 API_KEY = st.secrets.get("GROQ_API_KEY", "")
 client = Groq(api_key=API_KEY) if API_KEY else None
 
@@ -24,7 +32,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception:
         pass
 
-# 3. Инициализация состояний сессии
+# 4. Инициализация состояний сессии
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "is_logged_in" not in st.session_state:
@@ -36,29 +44,34 @@ if "user_name" not in st.session_state:
 if "user_about" not in st.session_state:
     st.session_state.user_about = ""
 
-# --- АВТОМАТИЧЕСКАЯ ПРОВЕРКА И СОХРАНЕНИЕ СЕССИИ СУПАБЕЙС (ПРИ ПЕРЕЗАГРУЗКЕ) ---
+# --- ВОССТАНОВЛЕНИЕ СЕССИИ ИЗ COOKIES ПРИ ПЕРЕЗАГРУЗКЕ СТРАНИЦЫ ---
 if supabase and not st.session_state.is_logged_in:
-    try:
-        session = supabase.auth.get_session()
-        if session and session.user:
-            st.session_state.is_logged_in = True
-            st.session_state.user_email = session.user.email
-            if not st.session_state.user_name:
-                st.session_state.user_name = session.user.email.split("@")[0].capitalize()
-    except Exception:
-        pass
+    saved_access_token = cookie_manager.get(cookie="sb_access_token")
+    saved_refresh_token = cookie_manager.get(cookie="sb_refresh_token")
+    
+    if saved_access_token and saved_refresh_token:
+        try:
+            res = supabase.auth.set_session(saved_access_token, saved_refresh_token)
+            if res and res.user:
+                st.session_state.is_logged_in = True
+                st.session_state.user_email = res.user.email
+                if not st.session_state.user_name:
+                    st.session_state.user_name = res.user.email.split("@")[0].capitalize()
+        except Exception:
+            # Если токен устарел или недействителен — очищаем куки
+            cookie_manager.delete("sb_access_token")
+            cookie_manager.delete("sb_refresh_token")
 
-# 4. Проверенные модели Groq
+# 5. Проверенные модели Groq
 MODEL_OPTIONS = {
     "llama-3.3-70b-versatile": "Llama 3.3 70B (Pro / Флагман)",
     "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)"
 }
 
-# --- ИСПРАВЛЕННЫЕ СТИЛИ (Сохраняем кнопку открытия шторки) ---
+# --- ИСПРАВЛЕННЫЕ СТИЛИ (Кнопка шторки всегда доступна) ---
 custom_styles = """
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    /* Скрываем только лишнее меню, оставляем кнопку открывания боковой панели */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
@@ -89,7 +102,7 @@ with st.sidebar:
     with st.expander("Профиль и Настройки", expanded=False):
         tab_account, tab_profile, tab_settings = st.tabs(["Аккаунт", "О себе", "ИИ"])
 
-        # Вкладка 1: Авторизация через Supabase
+        # Вкладка 1: Авторизация Supabase с сохранением в Cookies
         with tab_account:
             st.markdown("##### Авторизация")
             
@@ -104,6 +117,10 @@ with st.sidebar:
                             supabase.auth.sign_out()
                         except Exception:
                             pass
+                    # Удаляем куки при выходе
+                    cookie_manager.delete("sb_access_token")
+                    cookie_manager.delete("sb_refresh_token")
+                    
                     st.session_state.is_logged_in = False
                     st.session_state.user_email = ""
                     st.session_state.user_name = ""
@@ -126,6 +143,12 @@ with st.sidebar:
                                             "email": login_email,
                                             "password": login_password
                                         })
+                                        
+                                        # Сохраняем токены сессии в Cookies
+                                        if res.session:
+                                            cookie_manager.set("sb_access_token", res.session.access_token)
+                                            cookie_manager.set("sb_refresh_token", res.session.refresh_token)
+
                                         st.session_state.is_logged_in = True
                                         st.session_state.user_email = res.user.email
                                         st.session_state.user_name = login_email.split("@")[0].capitalize()
@@ -134,7 +157,7 @@ with st.sidebar:
                                     except Exception as e:
                                         st.error(f"Ошибка входа: {e}")
                                 else:
-                                    st.warning("Supabase не подключен. Проверьте Secrets.")
+                                    st.warning("Supabase не подключен в Secrets.")
                             else:
                                 st.error("Заполните почту и пароль!")
                     else: # Регистрация
@@ -231,7 +254,7 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     if st.session_state.user_about:
         user_info_context += f"Фоновая информация/стек: {st.session_state.user_about}."
 
-    # Настройки поведения
+    # Настройки поведения ИИ
     personality_rules = """
     ПРАВИЛА СТИЛЯ И ОБЩЕНИЯ:
     1. НЕ ИСПОЛЬЗУЙ эмодзи/смайлики (никаких 🤖, ⚡, 😊 и т.д.).
