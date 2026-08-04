@@ -16,8 +16,10 @@ client = Groq(api_key=API_KEY)
 # 3. Инициализация состояний (память сессии)
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "theme" not in st.session_state:
-    st.session_state.theme = "Темная"
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 if "user_name" not in st.session_state:
     st.session_state.user_name = ""
 if "user_about" not in st.session_state:
@@ -45,14 +47,57 @@ with st.sidebar:
 
     st.divider()
 
-    # ЕДИНАЯ КНОПКА НАСТРОЕК И ПРОФИЛЯ (Без цветных эмодзи в тексте)
+    # ЕДИНАЯ КНОПКА НАСТРОЕК И ПРОФИЛЯ
     with st.expander("Профиль и Настройки", expanded=False):
-        tab_profile, tab_account, tab_settings = st.tabs(["О себе", "Аккаунт", "ИИ"])
+        tab_account, tab_profile, tab_settings = st.tabs(["Аккаунт", "О себе", "ИИ"])
 
-        # Вкладка 1: Профиль
+        # Вкладка 1: Авторизация (Вход и Выход)
+        with tab_account:
+            st.markdown("##### Авторизация")
+            
+            if st.session_state.is_logged_in:
+                st.success(f"Вы вошли как:\n**{st.session_state.user_name or st.session_state.user_email}**")
+                if st.session_state.user_email:
+                    st.caption(f"Email: {st.session_state.user_email}")
+                
+                if st.button("Выйти из аккаунта", use_container_width=True):
+                    st.session_state.is_logged_in = False
+                    st.session_state.user_email = ""
+                    st.session_state.user_name = ""
+                    st.toast("Вы успешно вышли из системы")
+                    st.rerun()
+            else:
+                auth_method = st.radio("Способ входа:", ["По почте", "Через Google"], key="auth_method_choice")
+                
+                if auth_method == "По почте":
+                    login_email = st.text_input("Электронная почта", placeholder="example@mail.com")
+                    login_password = st.text_input("Пароль", type="password")
+                    
+                    if st.button("Войти", use_container_width=True):
+                        if login_email and login_password:
+                            st.session_state.is_logged_in = True
+                            st.session_state.user_email = login_email
+                            # Извлекаем имя из почты до знака @
+                            st.session_state.user_name = login_email.split("@")[0].capitalize()
+                            st.toast("Вход выполнен успешно!", icon="✔")
+                            st.rerun()
+                        else:
+                            st.error("Заполните почту и пароль!")
+                            
+                elif auth_method == "Через Google":
+                    st.caption("Быстрый вход через аккаунт Google")
+                    if st.button("Войти через Google", use_container_width=True):
+                        # Имитация входа через Google OAuth
+                        st.session_state.is_logged_in = True
+                        st.session_state.user_email = "user.google@gmail.com"
+                        st.session_state.user_name = "Пользователь Google"
+                        st.toast("Авторизация через Google прошла успешно!", icon="✔")
+                        st.rerun()
+
+        # Вкладка 2: Данные о себе
         with tab_profile:
             st.markdown("##### Данные о пользователе")
-            st.caption("Расскажите ИИ о себе для контекста.")
+            st.caption("Расскажите ИИ о себе для более точных ответов.")
             
             user_name_input = st.text_input("Как вас зовут?", value=st.session_state.user_name)
             user_about_input = st.text_area(
@@ -67,14 +112,6 @@ with st.sidebar:
                 st.session_state.user_about = user_about_input
                 st.toast("Данные сохранены", icon="✔")
 
-        # Вкладка 2: Аккаунт
-        with tab_account:
-            st.markdown("##### Вход и Аккаунт")
-            if st.session_state.user_name:
-                st.success(f"Профиль: **{st.session_state.user_name}**")
-            else:
-                st.info("Гостевой режим")
-
         # Вкладка 3: Параметры ИИ
         with tab_settings:
             st.markdown("##### Настройки системы")
@@ -84,55 +121,24 @@ with st.sidebar:
                 index=0
             )
             selected_model_id = [key for key, value in MODEL_OPTIONS.items() if value == selected_model_label][0]
-            
-            selected_theme = st.radio(
-                "Тема оформления:",
-                ["Темная", "Светлая"],
-                index=0 if st.session_state.theme == "Темная" else 1
-            )
-            st.session_state.theme = selected_theme
 
     st.divider()
     if st.button("Очистить историю чата", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# --- ЦВЕТОВЫЕ ТЕМЫ ---
-if st.session_state.theme == "Светлая":
-    bg_color = "#ffffff"
-    text_color = "#1f2328"
-    card_bg = "#f6f8fa"
-    border_color = "#d0d7de"
-else:  # Тёмная тема
-    bg_color = "#0d1117"
-    text_color = "#e6edf3"
-    card_bg = "#161b22"
-    border_color = "#30363d"
-
-custom_styles = f"""
+# --- СТАНДАРТНЫЙ СВЕТЛЫЙ СТИЛЬ (Без переключения тем) ---
+custom_styles = """
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden;}}
-    .stAppHeader {{display: none;}}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stAppHeader {display: none;}
     
-    .stApp {{
-        background-color: {bg_color} !important;
-        color: {text_color} !important;
-    }}
-    .stSidebar {{
-        background-color: {card_bg} !important;
-        border-right: 1px solid {border_color} !important;
-    }}
-    
-    p, span, label, h1, h2, h3, h4 {{
-        color: {text_color} !important;
-    }}
-    
-    .icon-title {{ color: #58a6ff; margin-right: 8px; }}
-    .custom-header {{ font-size: 2rem; font-weight: 700; margin-bottom: 5px; color: {text_color}; }}
-    .custom-sub {{ color: #8b949e !important; font-size: 0.95rem; margin-bottom: 15px; }}
+    .icon-title { color: #58a6ff; margin-right: 8px; }
+    .custom-header { font-size: 2rem; font-weight: 700; margin-bottom: 5px; }
+    .custom-sub { color: #8b949e !important; font-size: 0.95rem; margin-bottom: 15px; }
 </style>
 """
 st.markdown(custom_styles, unsafe_allow_html=True)
@@ -163,6 +169,8 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     user_info_context = ""
     if st.session_state.user_name:
         user_info_context += f"Имя пользователя: {st.session_state.user_name}. "
+    if st.session_state.user_email:
+        user_info_context += f"Email пользователя: {st.session_state.user_email}. "
     if st.session_state.user_about:
         user_info_context += f"Фоновая информация/стек: {st.session_state.user_about}."
 
@@ -170,9 +178,9 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     personality_rules = """
     ПРАВИЛА СТИЛЯ И ОБЩЕНИЯ:
     1. НЕ ИСПОЛЬЗУЙ эмодзи/смайлики (никаких 🤖, ⚡, 😊 и т.д.).
-    2. Общайся ЖИВО, естественным человеческим языком! Будь энергичным, с тонким юмором, харизмой и энтузиазмом. Выражай эмоции словами, метафорами, восклицаниями и форматированием текста (жирный текст, списки).
-    3. НЕ выпаливай информацию из профиля сразу (не нужно в первом же приветствии говорить "Я знаю, что ты любишь..."). Используй профиль органично и только к месту.
-    4. Если тебя просят написать читы или вредоносный код для видеоигр — отказайся от такой разработки, но сохраняй дружелюбный тон.
+    2. Общайся ЖИВО, естественным человеческим языком! Выражай эмоции словами, метафорами, восклицаниями и форматированием текста (жирный текст, списки).
+    3. НЕ выпаливай информацию из профиля сразу при первом приветствии. Используй профиль органично и только к месту.
+    4. Если тебя просят написать читы или вредоносный код для видеоигр — отказывайся от такой разработки, но сохраняй дружелюбный тон.
     """
 
     if app_mode == "Senior Программист":
