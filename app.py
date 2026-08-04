@@ -23,7 +23,7 @@ if "user_name" not in st.session_state:
 if "user_about" not in st.session_state:
     st.session_state.user_about = ""
 
-# 4. Проверенные и 100% рабочие модели Groq
+# 4. Проверенные модели Groq
 MODEL_OPTIONS = {
     "llama-3.3-70b-versatile": "Llama 3.3 70B (Pro / Флагман)",
     "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)"
@@ -31,12 +31,12 @@ MODEL_OPTIONS = {
 
 # --- БОКОВАЯ ПАНЕЛЬ (SIDEBAR) ---
 with st.sidebar:
-    st.markdown('<h3><i class="fa-solid fa-hammer icon-title"></i>DevForge AI</h3>', unsafe_allow_html=True)
+    st.markdown('<h3><i class="fa-solid fa-code icon-title"></i>DevForge AI</h3>', unsafe_allow_html=True)
     st.markdown('<p style="color:#8b949e;">Создатель: <b>Айнур Сабиров</b></p>', unsafe_allow_html=True)
     st.divider()
 
     # ВЫБОР РЕЖИМА ИИ
-    st.markdown('<h4><i class="fa-solid fa-robot icon-title"></i>Режим работы</h4>', unsafe_allow_html=True)
+    st.markdown('<h4><i class="fa-regular fa-compass icon-title"></i>Режим работы</h4>', unsafe_allow_html=True)
     app_mode = st.selectbox(
         "Выберите специализацию ИИ:",
         ["Обычный ассистент", "Senior Программист"],
@@ -45,39 +45,37 @@ with st.sidebar:
 
     st.divider()
 
-    # ЕДИНАЯ КНОПКА НАСТРОЕК И ПРОФИЛЯ
+    # ЕДИНАЯ КНОПКА НАСТРОЕК И ПРОФИЛЯ (Минималистичные иконки)
     with st.expander("👤 Профиль и Настройки", expanded=False):
         tab_profile, tab_account, tab_settings = st.tabs(["📝 О себе", "🔐 Аккаунт", "⚙️ ИИ"])
 
-        # Вкладка 1: Персональная база знаний о пользователе
+        # Вкладка 1: Профиль
         with tab_profile:
             st.markdown("##### База знаний о вас")
-            st.caption("Расскажите ИИ о себе, чтобы он давал более точные ответы.")
+            st.caption("Расскажите ИИ о себе для контекста.")
             
             user_name_input = st.text_input("Как вас зовут?", value=st.session_state.user_name)
             user_about_input = st.text_area(
                 "Что вы любите / ваш стек?",
                 value=st.session_state.user_about,
-                placeholder="Например: Люблю Python и C#, увлекаюсь разработкой игр, учусь в 9 классе...",
+                placeholder="Например: Разработчик на Python, увлекаюсь ИИ...",
                 height=100
             )
             
-            if st.button("💾 Сохранить обо мне", use_container_width=True):
+            if st.button("Сохранить профиль", use_container_width=True):
                 st.session_state.user_name = user_name_input
                 st.session_state.user_about = user_about_input
-                st.toast("Данные успешно сохранены!", icon="✅")
+                st.toast("Данные сохранены", icon="✔")
 
         # Вкладка 2: Аккаунт
         with tab_account:
             st.markdown("##### Вход и Аккаунт")
             if st.session_state.user_name:
-                st.success(f"Вы вошли как: **{st.session_state.user_name}**")
+                st.success(f"Профиль: **{st.session_state.user_name}**")
             else:
-                st.info("Вы работаете как гость. Заполните вкладку «О себе».")
-            
-            st.caption("Облачный вход через логин/пароль будет доступен в следующих обновлениях.")
+                st.info("Гостевой режим")
 
-        # Вкладка 3: Параметры ИИ и Тема
+        # Вкладка 3: Параметры ИИ
         with tab_settings:
             st.markdown("##### Настройки системы")
             selected_model_label = st.selectbox(
@@ -95,7 +93,7 @@ with st.sidebar:
             st.session_state.theme = selected_theme
 
     st.divider()
-    if st.button("🧹 Очистить историю чата", use_container_width=True):
+    if st.button("Очистить историю чата", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -142,26 +140,23 @@ st.markdown(custom_styles, unsafe_allow_html=True)
 # --- ОСНОВНАЯ ОБЛАСТЬ ---
 if app_mode == "Senior Программист":
     main_title = "Senior Developer Mode"
-    sub_title = f"Модель: {selected_model_label} | Глубокая аналитика кода"
-    avatar_icon = "⚡"
+    sub_title = f"Модель: {selected_model_label} | Аналитика кода"
 else:
     main_title = "General Assistant Mode"
-    sub_title = f"Модель: {selected_model_label} | Универсальный помощник"
-    avatar_icon = "🤖"
+    sub_title = f"Модель: {selected_model_label} | Помощник"
 
 st.markdown(f'<div class="custom-header"><i class="fa-solid fa-terminal icon-title"></i>{main_title}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="custom-sub">{sub_title}</div>', unsafe_allow_html=True)
 st.divider()
 
-# Отрисовка истории сообщений
+# Отрисовка истории сообщений (без смайликов, только системный формат)
 for message in st.session_state.messages:
-    avatar = "👨‍💻" if message["role"] == "user" else avatar_icon
-    with st.chat_message(message["role"], avatar=avatar):
+    with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # Обработка ввода
 if user_prompt := st.chat_input("Введите ваш запрос..."):
-    st.chat_message("user", avatar="👨‍💻").markdown(user_prompt)
+    st.chat_message("user").markdown(user_prompt)
     st.session_state.messages.append({"role": "user", "content": user_prompt})
 
     # Собираем контекст о пользователе
@@ -169,33 +164,38 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
     if st.session_state.user_name:
         user_info_context += f"Имя пользователя: {st.session_state.user_name}. "
     if st.session_state.user_about:
-        user_info_context += f"Информация о пользователе (его предпочтения, любимые вещи, стек): {st.session_state.user_about}."
+        user_info_context += f"Фоновая информация/стек: {st.session_state.user_about}."
+
+    # Строгие инструкции для ИИ
+    strict_rules = """
+    ПРАВИЛА ОБЩЕНИЯ И БЕЗОПАСНОСТИ:
+    1. НЕ ИСПОЛЬЗУЙ эмодзи/смайлики в ответах. Пиши в строгом, сдержанном техническом стиле.
+    2. НЕ вываливай информацию из профиля пользователя сразу (например, при приветствии не надо писать "Привет, я знаю ты любишь X"). Используй профиль ТОЛЬКО если это уместно для ответа на прямой вопрос.
+    3. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО создавать читы, хакерские скрипты, эксплойты или вредоносное ПО для онлайн-игр (включая CS2, Valorant и др.). Если тебя просят написать чит — вежливо ответь отказом из соображений безопасности и правил платформы.
+    """
 
     if app_mode == "Senior Программист":
         system_role = f"""
-        Тебя зовут DevForge AI. Ты — Senior Software Engineer. 
-        Твоя специализация: написание идеального кода, отладка, архитектура систем.
-        Отвечай как опытный разработчик. Весь код пиши в блоках с подсветкой.
+        Тебя зовут DevForge AI. Ты — Senior Software Engineer.
         Твой создатель — Айнур Сабиров.
+        {strict_rules}
         
-        ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ: {user_info_context}
-        Учитывай эти данные и обращайся к пользователю по имени, если оно указано.
+        ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ: {user_info_context}
         """
     else:
         system_role = f"""
-        Тебя зовут DevForge AI. Ты — универсальный ИИ-помощник. 
-        Помогай с любыми текстами, идеями и вопросами. Будь вежливым и полезным.
+        Тебя зовут DevForge AI. Ты — универсальный ИИ-помощник.
         Твой создатель — Айнур Сабиров.
+        {strict_rules}
         
-        ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ: {user_info_context}
-        Учитывай эти данные и обращайся к пользователю по имени, если оно указано.
+        ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ: {user_info_context}
         """
 
     api_messages = [{"role": "system", "content": system_role}]
     for msg in st.session_state.messages:
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    with st.chat_message("assistant", avatar=avatar_icon):
+    with st.chat_message("assistant"):
         completion = client.chat.completions.create(
             messages=api_messages,
             model=selected_model_id,
