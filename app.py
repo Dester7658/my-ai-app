@@ -20,12 +20,18 @@ if "messages" not in st.session_state:
 if "theme" not in st.session_state:
     st.session_state.theme = "Темная"
 
-# 4. Словарь актуальных моделей и их понятных названий
+# 4. Проверенные и 100% рабочие модели Groq
 MODEL_OPTIONS = {
     "llama-3.3-70b-versatile": "Llama 3.3 70B (Pro / Флагман)",
-    "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)",
-    "gemma2-9b-it": "Gemma 2 9B (Легкая / Google)"
+    "llama-3.1-8b-instant": "Llama 3.1 8B (Быстрая / Fast)"
 }
+
+# 5. Скрытая загрузка базы знаний (пользователь её в меню не увидит!)
+if os.path.exists("knowledge.txt"):
+    with open("knowledge.txt", "r", encoding="utf-8") as f:
+        knowledge_data = f.read()
+else:
+    knowledge_data = "База знаний пуста."
 
 # --- БОКОВАЯ ПАНЕЛЬ (SIDEBAR) ---
 with st.sidebar:
@@ -45,17 +51,17 @@ with st.sidebar:
 
     # НАСТРОЙКИ
     with st.expander("⚙️ Настройки приложения", expanded=True):
-        # 1. Выбор модели с понятным названием
+        # Выбор модели
         selected_model_label = st.selectbox(
             "Модель ИИ:",
             options=list(MODEL_OPTIONS.values()),
             index=0
         )
         
-        # Получаем реальный системный ID модели по ее красивому названию
+        # Системный ID выбранной модели
         selected_model_id = [key for key, value in MODEL_OPTIONS.items() if value == selected_model_label][0]
         
-        # 2. Выбор темы
+        # Выбор темы
         selected_theme = st.radio(
             "Тема оформления:",
             ["Темная", "Светлая"],
@@ -68,28 +74,19 @@ with st.sidebar:
             st.session_state.messages = []
             st.rerun()
 
-    st.divider()
-    
-    # БАЗА ЗНАНИЙ
-    st.markdown('<h4><i class="fa-regular fa-folder-open icon-title"></i>База знаний</h4>', unsafe_allow_html=True)
-    if os.path.exists("knowledge.txt"):
-        with open("knowledge.txt", "r", encoding="utf-8") as f:
-            knowledge_data = f.read()
-    else:
-        knowledge_data = "База знаний пуста."
-    st.text_area("", knowledge_data, height=120, disabled=True)
-
-# --- ПРИМЕНЕНИЕ ДИНАМИЧЕСКИХ СТИЛЕЙ И ТЕМЫ ---
+# --- КРАСИВЫЕ И КОРРЕКТНЫЕ ЦВЕТОВЫЕ ТЕМЫ ---
 if st.session_state.theme == "Светлая":
     bg_color = "#ffffff"
     text_color = "#1f2328"
     card_bg = "#f6f8fa"
     border_color = "#d0d7de"
-else:  # Темная тема
+    chat_bg = "#ffffff"
+else:  # Стильная темная тема (стиль GitHub Dark)
     bg_color = "#0d1117"
-    text_color = "#c9d1d9"
+    text_color = "#e6edf3"
     card_bg = "#161b22"
     border_color = "#30363d"
+    chat_bg = "#0d1117"
 
 custom_styles = f"""
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -99,18 +96,24 @@ custom_styles = f"""
     header {{visibility: hidden;}}
     .stAppHeader {{display: none;}}
     
+    /* Основные цвета сайта */
     .stApp {{
-        background-color: {bg_color};
-        color: {text_color};
+        background-color: {bg_color} !important;
+        color: {text_color} !important;
     }}
     .stSidebar {{
-        background-color: {card_bg};
-        border-right: 1px solid {border_color};
+        background-color: {card_bg} !important;
+        border-right: 1px solid {border_color} !important;
+    }}
+    
+    /* Тексты и заголовки */
+    p, span, label, h1, h2, h3, h4 {{
+        color: {text_color} !important;
     }}
     
     .icon-title {{ color: #58a6ff; margin-right: 8px; }}
     .custom-header {{ font-size: 2rem; font-weight: 700; margin-bottom: 5px; color: {text_color}; }}
-    .custom-sub {{ color: #8b949e; font-size: 0.95rem; margin-bottom: 15px; }}
+    .custom-sub {{ color: #8b949e !important; font-size: 0.95rem; margin-bottom: 15px; }}
 </style>
 """
 st.markdown(custom_styles, unsafe_allow_html=True)
@@ -146,7 +149,7 @@ if user_prompt := st.chat_input("Введите ваш запрос..."):
         Твоя специализация: написание идеального кода, отладка, архитектура систем.
         Отвечай как опытный разработчик. Весь код пиши в блоках с подсветкой.
         Твой создатель — Айнур Сабиров.
-        БАЗА ЗНАНИЙ: {knowledge_data}
+        СКРЫТАЯ БАЗА ЗНАНИЙ СОЗДАТЕЛЯ: {knowledge_data}
         """
     else:
         system_role = f"""
