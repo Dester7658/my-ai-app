@@ -36,6 +36,18 @@ if "user_name" not in st.session_state:
 if "user_about" not in st.session_state:
     st.session_state.user_about = ""
 
+# --- АВТОМАТИЧЕСКАЯ ПРОВЕРКА И СОХРАНЕНИЕ СЕССИИ СУПАБЕЙС (ПРИ ПЕРЕЗАГРУЗКЕ) ---
+if supabase and not st.session_state.is_logged_in:
+    try:
+        session = supabase.auth.get_session()
+        if session and session.user:
+            st.session_state.is_logged_in = True
+            st.session_state.user_email = session.user.email
+            if not st.session_state.user_name:
+                st.session_state.user_name = session.user.email.split("@")[0].capitalize()
+    except Exception:
+        pass
+
 # 4. Проверенные модели Groq
 MODEL_OPTIONS = {
     "llama-3.3-70b-versatile": "Llama 3.3 70B (Pro / Флагман)",
